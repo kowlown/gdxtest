@@ -1,5 +1,5 @@
-package com.badlogic.drop;
 
+package com.badlogic.drop;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.FrameBuffer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector3;
@@ -29,6 +30,15 @@ public class Drop extends ApplicationAdapter {
     private Rectangle bucket;
     private Array<Rectangle> raindrops;
     private long lastDropTime;
+    private FrameBuffer fb;
+    private int width = 800;
+    private int height = 600;
+    private NativeRenderer jfxRenderer;
+
+    public void setJfxRenderer(NativeRenderer renderer) {
+        jfxRenderer = renderer;
+    }
+
 
     @Override
     public void create() {
@@ -45,17 +55,19 @@ public class Drop extends ApplicationAdapter {
         rainMusic.play();
 
         camera = new OrthographicCamera();
-        camera.setToOrtho(false, 800, 480);
+        camera.setToOrtho(true, width, height);
 
         batch = new SpriteBatch();
 
         bucket = new Rectangle();
-        bucket.x = 800 / 2 - 64 / 2;
+        bucket.x = width / 2 - 64 / 2;
         bucket.y = 20;
         bucket.width = 64;
         bucket.height = 64;
 
         raindrops = new Array<Rectangle>();
+        fb = new FrameBuffer(Pixmap.Format.RGBA8888, width, height, true);
+
         spawnRaindrop();
     }
 
@@ -65,11 +77,14 @@ public class Drop extends ApplicationAdapter {
         touchPos.set(x, y, 0);
         camera.unproject(touchPos);
         bucket.x = touchPos.x - 64 / 2;
+        if(bucket.x < 0) bucket.x = 0;
+        if(bucket.x > 800 - 64) bucket.x = 800 - 64;
     }
 
 
     @Override
     public void render() {
+        fb.begin();
         ScreenUtils.clear(0, 0, 0.2f, 1);
         camera.update();
 
@@ -80,14 +95,12 @@ public class Drop extends ApplicationAdapter {
             batch.draw(dropImage, raindrop.x, raindrop.y);
         }
         batch.end();
-
-        if(Gdx.input.isTouched()) {
-            setBucket(Gdx.input.getX(), Gdx.input.getY());
+        if(jfxRenderer != null) {
+            var bytes = ScreenUtils.getFrameBufferPixels(false);
+             jfxRenderer.setGdxBuffer(bytes);
         }
-        if(Gdx.input.isKeyPressed(Input.Keys.LEFT)) bucket.x -= 200 * Gdx.graphics.getDeltaTime();
-        if(Gdx.input.isKeyPressed(Input.Keys.RIGHT)) bucket.x += 200 * Gdx.graphics.getDeltaTime();
-        if(bucket.x < 0) bucket.x = 0;
-        if(bucket.x > 800 - 64) bucket.x = 800 - 64;
+
+        fb.end();
 
         if(TimeUtils.nanoTime() - lastDropTime > 1000000000) spawnRaindrop();
         for (Iterator<Rectangle> iter = raindrops.iterator(); iter.hasNext(); ) {
@@ -100,6 +113,7 @@ public class Drop extends ApplicationAdapter {
                 iter.remove();
             }
         }
+
     }
 
     private void spawnRaindrop() {
