@@ -117,7 +117,7 @@ public class NativeRenderingCanvas {
             public void run() {
                 Platform.runLater(() -> render(nrViewport));
             }
-        }, 0, 10);
+        }, 0, (int)1000/30); // 30 fps
 
 
         init();
