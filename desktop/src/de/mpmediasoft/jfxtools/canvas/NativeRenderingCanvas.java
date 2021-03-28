@@ -44,7 +44,7 @@ public class NativeRenderingCanvas {
     private final int numBuffers = 2;
 
     // Configure this to use an external thread or the JavaFX application thread for rendering.
-    private final boolean doRenderingAsynchronously = true; // The resizing does not work perfectly yet !!!
+    private final boolean doRenderingAsynchronously = false; // The resizing does not work perfectly yet !!!
 
     private final int MAX_THREADS = 1; // More than one thread does not make sense for this service setup!
 
@@ -95,7 +95,7 @@ public class NativeRenderingCanvas {
         imageView.imageProperty().bind(fxImage);
         imageView.fitWidthProperty().bind(canvasPane.widthProperty());
         imageView.fitHeightProperty().bind(canvasPane.heightProperty());
-        imageView.setManaged(false); // !!!
+        //imageView.setManaged(false); // !!!
         imageView.setPreserveRatio(true);
         imageView.setPickOnBounds(true);
 
@@ -227,6 +227,7 @@ public class NativeRenderingCanvas {
      * before the NativeRenderingCanvas instance can be used again.
      */
     public void dispose() {
+        myTimer.cancel();
         nrViewport = emptyViewport;
         inScrollBrackets = false;
 

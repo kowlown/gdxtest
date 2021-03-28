@@ -22,8 +22,8 @@ public class NativeRenderer {
     int singleBufferSize;
 
     int currentBufferIndex;
-    Lwjgl3Application app;
     Drop drop;
+    Thread gdxThread;
 
     // Initialization and disposal:
 
@@ -47,13 +47,13 @@ public class NativeRenderer {
 
         drop = new Drop();
         drop.setJfxRenderer(this);
-        new Thread(()->
-        app = new Lwjgl3Application(drop, config)).start();
+        gdxThread = new Thread(()-> new Lwjgl3Application(drop, config));
+        gdxThread.start();
 
     }
 
     public void dispose() {
-
+        Gdx.app.exit();
     }
 
     // Canvas creation and rendering:

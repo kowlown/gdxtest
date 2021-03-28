@@ -34,6 +34,7 @@ public class Drop extends ApplicationAdapter {
     private int width = 800;
     private int height = 600;
     private NativeRenderer jfxRenderer;
+    private boolean initialized;
 
     public void setJfxRenderer(NativeRenderer renderer) {
         jfxRenderer = renderer;
@@ -69,10 +70,14 @@ public class Drop extends ApplicationAdapter {
         fb = new FrameBuffer(Pixmap.Format.RGBA8888, width, height, true);
 
         spawnRaindrop();
+        initialized = true;
     }
 
     public void setBucket(int x, int y)
     {
+        if(!initialized)
+            return;
+
         Vector3 touchPos = new Vector3();
         touchPos.set(x, y, 0);
         camera.unproject(touchPos);
@@ -128,6 +133,7 @@ public class Drop extends ApplicationAdapter {
 
     @Override
     public void dispose() {
+        jfxRenderer = null;
         dropImage.dispose();
         bucketImage.dispose();
         dropSound.dispose();
