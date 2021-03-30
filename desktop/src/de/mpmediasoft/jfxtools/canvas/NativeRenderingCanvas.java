@@ -108,7 +108,6 @@ public class NativeRenderingCanvas {
             var width = (int) n.getWidth();
             var height = (int) n.getHeight();
 
-
             render(nrViewport.withSize(width, height));
 
         };
@@ -140,16 +139,16 @@ public class NativeRenderingCanvas {
                 nativeRenderer.mouseMove((int)mx, (int)my);
             }
         });
-
+/*
         imageView.setOnMouseReleased(e -> {
                        nativeRenderer.init();
-            /*if (! e.isSynthesized()) {
+            if (! e.isSynthesized()) {
                 mx = 0.0;
                 my = 0.0;
                 e.consume();
-            } */
+            }
         });
-         /*
+
         imageView.setOnMouseDragged(e -> {
             if (! e.isSynthesized()) {
                 Viewport newViewport = nrViewport.withDeltaLocation((int)(mx - e.getX()), (int)(my - e.getY()));

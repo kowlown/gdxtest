@@ -46,7 +46,11 @@ public class NativeRenderer {
         return height;
     }
 
+    // on mac this must be called when the canvas is isDisplayable
     public void init() {
+        if(app != null)
+            return;
+
         canvas.setVisible(false);
         canvas.setSize(800, 600);
         var config = new LwjglApplicationConfiguration();
@@ -65,7 +69,7 @@ public class NativeRenderer {
     }
 
     public void dispose() {
-        Gdx.app.exit();
+        app.stop();
     }
 
     // Canvas creation and rendering:
@@ -81,6 +85,7 @@ public class NativeRenderer {
 
         buffer = ByteBuffer.allocate(singleBufferSize * numBuffers);
 
+        init();
         return buffer;
     }
 
