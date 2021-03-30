@@ -4,9 +4,13 @@ import com.badlogic.drop.Drop;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.opengl.Display;
 //import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 //import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 
+import java.awt.*;
 import java.nio.ByteBuffer;
 
 /**
@@ -15,16 +19,22 @@ import java.nio.ByteBuffer;
  * @author Michael Paus
  */
 public class NativeRenderer {
-    byte[] gdxBuffer;
+    private byte[] gdxBuffer;
     private ByteBuffer buffer;
-    int bufferCount;
-    int width;
-    int height;
-    int colorModel;
-    int singleBufferSize;
+    private int bufferCount;
+    private int width;
+    private int height;
+    private int colorModel;
+    private int singleBufferSize;
 
-    int currentBufferIndex;
-    Drop drop;
+
+    private int currentBufferIndex;
+    private Drop drop;
+    private Canvas canvas;
+
+    public NativeRenderer(Canvas dummyCanvas) {
+        canvas = dummyCanvas;
+    }
 
     // Initialization and disposal:
 
@@ -41,6 +51,8 @@ public class NativeRenderer {
     }
 
     public void init() {
+        canvas.setVisible(false);
+        canvas.setSize(800, 600);
         var config = new LwjglApplicationConfiguration();
         config.title = "Drop";
         config.height = 600;
@@ -53,8 +65,7 @@ public class NativeRenderer {
 */
         drop = new Drop();
         drop.setJfxRenderer(this);
-        new LwjglApplication(drop, config);
-
+        new LwjglApplication(drop, config, canvas);
     }
 
     public void dispose() {

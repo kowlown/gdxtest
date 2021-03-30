@@ -1,5 +1,6 @@
 package de.mpmediasoft.jfxtools.canvas;
 
+import java.awt.*;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.Timer;
@@ -81,9 +82,10 @@ public class NativeRenderingCanvas {
 
     /**
      * Create and initialize a NativeRenderingCanvas instance.
+     * @param dummyCanvas
      */
-    public NativeRenderingCanvas() {
-        nativeRenderer = new NativeRenderer();
+    public NativeRenderingCanvas(Canvas dummyCanvas) {
+        nativeRenderer = new NativeRenderer(dummyCanvas);
         renderingService = new RenderingService();
         canvasPane = new Pane();
 

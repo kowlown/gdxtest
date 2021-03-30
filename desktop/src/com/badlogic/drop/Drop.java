@@ -17,6 +17,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.TimeUtils;
 import de.mpmediasoft.jfxtools.canvas.NativeRenderer;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.Iterator;
 
@@ -70,6 +71,9 @@ public class Drop extends ApplicationAdapter {
         fb = new FrameBuffer(Pixmap.Format.RGBA8888, width, height, true);
 
         spawnRaindrop();
+
+        //var window = GLFW.glfwGetCurrentContext();
+        //GLFW.glfwHideWindow(window);
         initialized = true;
     }
 
