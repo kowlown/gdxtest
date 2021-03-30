@@ -2,8 +2,10 @@ package de.mpmediasoft.jfxtools.canvas;
 
 import com.badlogic.drop.Drop;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
-import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
+import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
+//import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
+//import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 
 import java.nio.ByteBuffer;
 
@@ -23,7 +25,6 @@ public class NativeRenderer {
 
     int currentBufferIndex;
     Drop drop;
-    Thread gdxThread;
 
     // Initialization and disposal:
 
@@ -40,15 +41,19 @@ public class NativeRenderer {
     }
 
     public void init() {
-        var config = new Lwjgl3ApplicationConfiguration();
-        config.setTitle("Drop");
+        var config = new LwjglApplicationConfiguration();
+        config.title = "Drop";
+        config.height = 600;
+        config.width = 800;
+        config.allowSoftwareMode = true;
+
+       /* config.setTitle("Drop");
         config.setWindowedMode(800,600);
         config.setInitialVisible(false);
-
+*/
         drop = new Drop();
         drop.setJfxRenderer(this);
-        gdxThread = new Thread(()-> new Lwjgl3Application(drop, config));
-        gdxThread.start();
+        new LwjglApplication(drop, config);
 
     }
 
@@ -69,11 +74,6 @@ public class NativeRenderer {
 
         buffer = ByteBuffer.allocate(singleBufferSize * numBuffers);
 
- /*       var intBuffer = buffer.asIntBuffer();
-        for (var i = 0; i < intBuffer.capacity(); i++) {
-            intBuffer.put(i, 0xFF0000FF);
-        }
-*/
         return buffer;
     }
 
@@ -81,19 +81,9 @@ public class NativeRenderer {
         currentBufferIndex += 1;
         if(currentBufferIndex >= bufferCount) currentBufferIndex = 0;
 
-       /* Gdx.app.postRunnable(() -> {
-            var pixmap = Pixmap.createFromFrameBuffer(0,0,width, height);
-            gdxBuffer = pixmap.getPixels();
-        });*/
         var currentGdxBuffer = gdxBuffer;
 
         if(currentGdxBuffer != null) {
-            //fix colors RGBA -> BGRA
-            for(int i = 0; i< gdxBuffer.length; i += 4) {
-                var red = currentGdxBuffer[i];
-                currentGdxBuffer[i] = currentGdxBuffer[i + 2];
-                currentGdxBuffer[i + 2] = red;
-            }
 
             buffer.position(currentBufferIndex*singleBufferSize);
             buffer.put(currentGdxBuffer);

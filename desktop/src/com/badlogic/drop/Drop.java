@@ -102,7 +102,14 @@ public class Drop extends ApplicationAdapter {
         batch.end();
         if(jfxRenderer != null) {
             var bytes = ScreenUtils.getFrameBufferPixels(false);
-             jfxRenderer.setGdxBuffer(bytes);
+            //fix colors RGBA -> BGRA
+            for(int i = 0; i< bytes.length; i += 4) {
+                var red = bytes[i];
+                bytes[i] = bytes[i + 2];
+                bytes[i + 2] = red;
+            }
+
+            jfxRenderer.setGdxBuffer(bytes);
         }
 
         fb.end();
