@@ -4,11 +4,6 @@ import com.badlogic.drop.Drop;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
-import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.opengl.Display;
-//import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
-//import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 
 import java.awt.*;
 import java.nio.ByteBuffer;
@@ -31,6 +26,7 @@ public class NativeRenderer {
     private int currentBufferIndex;
     private Drop drop;
     private Canvas canvas;
+    private LwjglApplication app;
 
     public NativeRenderer(Canvas dummyCanvas) {
         canvas = dummyCanvas;
@@ -65,7 +61,7 @@ public class NativeRenderer {
 */
         drop = new Drop();
         drop.setJfxRenderer(this);
-        new LwjglApplication(drop, config, canvas);
+        app = new LwjglApplication(drop, config, canvas);
     }
 
     public void dispose() {

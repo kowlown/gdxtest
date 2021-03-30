@@ -46,9 +46,9 @@ public class NativeRenderingCanvasDemo extends Application {
         var dummyCanvas = new Canvas();
         panel.add(dummyCanvas);
         final SwingNode swingNode = new SwingNode();
-        SwingUtilities.invokeLater(() -> {
+        //SwingUtilities.invokeAndWait(() -> {
             swingNode.setContent(panel);
-        });
+        //});
 
         canvas = new NativeRenderingCanvas(dummyCanvas);
 
@@ -56,7 +56,7 @@ public class NativeRenderingCanvasDemo extends Application {
         label.setMouseTransparent(true);
         label.setStyle("-fx-font-size: 64pt; -fx-font-family: Arial; -fx-font-weight: bold; -fx-text-fill: white; -fx-opacity: 0.8;");
 
-        root.getChildren().addAll(canvas.getRoot(), label);
+        root.getChildren().addAll(swingNode, canvas.getRoot(), label);
 
         Scene scene = new Scene(root, 800, 600);
         primaryStage.setScene(scene);

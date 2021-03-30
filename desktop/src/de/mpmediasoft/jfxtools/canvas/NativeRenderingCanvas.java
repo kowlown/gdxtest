@@ -130,7 +130,7 @@ public class NativeRenderingCanvas {
      */
     public void init() {
         canvasPane.boundsInLocalProperty().addListener(resizeListener);
-        nativeRenderer.init();
+        //nativeRenderer.init();
 
         imageView.setOnMouseMoved(e -> {
             if (!e.isSynthesized()) {
@@ -140,15 +140,16 @@ public class NativeRenderingCanvas {
                 nativeRenderer.mouseMove((int)mx, (int)my);
             }
         });
-/*
+
         imageView.setOnMouseReleased(e -> {
-            if (! e.isSynthesized()) {
+                       nativeRenderer.init();
+            /*if (! e.isSynthesized()) {
                 mx = 0.0;
                 my = 0.0;
                 e.consume();
-            }
+            } */
         });
-
+         /*
         imageView.setOnMouseDragged(e -> {
             if (! e.isSynthesized()) {
                 Viewport newViewport = nrViewport.withDeltaLocation((int)(mx - e.getX()), (int)(my - e.getY()));
