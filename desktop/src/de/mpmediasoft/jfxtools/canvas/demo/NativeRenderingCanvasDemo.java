@@ -59,6 +59,9 @@ public class NativeRenderingCanvasDemo extends Application {
         root.getChildren().addAll(swingNode, canvas.getRoot(), label);
 
         Scene scene = new Scene(root, 800, 600);
+        scene.setOnKeyPressed((e)->{
+            canvas.keyPressed(e);
+        });
         primaryStage.setScene(scene);
         primaryStage.show();
     }

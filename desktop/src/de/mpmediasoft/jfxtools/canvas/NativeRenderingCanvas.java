@@ -20,6 +20,7 @@ import javafx.geometry.Bounds;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.image.*;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 
 
@@ -44,7 +45,6 @@ public class NativeRenderingCanvas {
     // Configure this to use double-buffering [2] or not [1].
     private final int numBuffers = 2;
 
-    private final PixelFormat<ByteBuffer> pixelFormat;
     private final ObjectProperty<WritableImage> fxImage;
     private final ImageView imageView;
     private final Pane canvasPane;
@@ -68,7 +68,6 @@ public class NativeRenderingCanvas {
         canvasPane = new Pane();
 
         fxImage = new SimpleObjectProperty<>();
-        pixelFormat = PixelFormat.getByteBgraPreInstance();
 
         imageView = new ImageView();
 
@@ -85,12 +84,18 @@ public class NativeRenderingCanvas {
         resizeListener = (v, o, n) -> {
             var width = (int) n.getWidth();
             var height = (int) n.getHeight();
+            if(width <= 0 || height <= 0)
+                return;;
 
             render(nrViewport.withSize(width, height));
 
         };
 
         init();
+    }
+
+    public void keyPressed(KeyEvent e) {
+        nativeRenderer.keyDown(e.getCode().getCode());
     }
 
     /**
@@ -234,7 +239,7 @@ public class NativeRenderingCanvas {
     private void renderAction(Viewport newViewport, Viewport oldViewport) {
         if (newViewport != oldViewport) {
             if (newViewport.getWidth() != oldViewport.getWidth() || newViewport.getHeight() != oldViewport.getHeight()) {
-                newRawByteBuffer = nativeRenderer.createCanvas(newViewport.getWidth(), newViewport.getHeight(), numBuffers, NativeColorModel.INT_ARGB_PRE.ordinal());
+                newRawByteBuffer = nativeRenderer.createCanvas(newViewport.getWidth(), newViewport.getHeight(), numBuffers);
             }
         }
         //nativeRenderer.moveTo(newViewport.getMinX(), newViewport.getMinY());
@@ -243,9 +248,12 @@ public class NativeRenderingCanvas {
     // Must be called on JavaFX application thread.
     public void renderUpdate(int bufferIndex, int width, int height) {
         assert Platform.isFxApplicationThread() : "Not called on JavaFX application thread.";
+        if((int)imageView.getFitWidth() != width || (int)imageView.getFitHeight() != height)
+            return;
+
         if (newRawByteBuffer != oldRawByteBuffer) {
             oldRawByteBuffer = newRawByteBuffer;
-            pixelBuffer = new PixelBuffer<>(width, numBuffers * height, newRawByteBuffer, pixelFormat);
+            pixelBuffer = new PixelBuffer<>(width, numBuffers * height, newRawByteBuffer, PixelFormat.getByteBgraPreInstance());
             fxImage.set(new WritableImage(pixelBuffer));
         }
         pixelBuffer.updateBuffer(pb -> {

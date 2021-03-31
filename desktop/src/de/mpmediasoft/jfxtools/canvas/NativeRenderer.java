@@ -23,7 +23,6 @@ public class NativeRenderer implements InputProcessor {
     private int bufferCount;
     private int width;
     private int height;
-    private int colorModel;
     private int singleBufferSize;
 
 
@@ -44,14 +43,6 @@ public class NativeRenderer implements InputProcessor {
         gdxBuffer = buffer;
         var bufferIndex = render();
         Platform.runLater(()-> nativeCanvas.renderUpdate(bufferIndex, width, height));
-    }
-
-    public int getWidth() {
-        return width;
-    }
-
-    public int getHeight() {
-        return height;
     }
 
     // on mac this must be called when the canvas is isDisplayable
@@ -82,16 +73,16 @@ public class NativeRenderer implements InputProcessor {
 
     // Canvas creation and rendering:
 
-    public ByteBuffer createCanvas(int width, int height, int numBuffers, int nativeColorModel) {
+    public ByteBuffer createCanvas(int width, int height, int numBuffers) {
         this.width = width;
         this.height = height;
         bufferCount = numBuffers;
-        colorModel = nativeColorModel;
         currentBufferIndex = 0;
 
         singleBufferSize = width*height* 4;
 
         buffer = ByteBuffer.allocate(singleBufferSize * numBuffers);
+        canvas.setSize(width, height);
 
         init();
         return buffer;
@@ -102,12 +93,14 @@ public class NativeRenderer implements InputProcessor {
         if(currentBufferIndex >= bufferCount) currentBufferIndex = 0;
 
         var currentGdxBuffer = gdxBuffer;
+        var currentRenderBuffer = buffer;
+        var currentSingleBufferSize = singleBufferSize;
 
-        if(currentGdxBuffer != null) {
+        if(currentGdxBuffer != null && currentRenderBuffer.capacity() == 2*gdxBuffer.length && gdxBuffer.length == currentSingleBufferSize) {
 
-            buffer.position(currentBufferIndex*singleBufferSize);
-            buffer.put(currentGdxBuffer);
-            buffer.rewind();
+            currentRenderBuffer.position(currentBufferIndex*currentSingleBufferSize);
+            currentRenderBuffer.put(currentGdxBuffer);
+            currentRenderBuffer.rewind();
         }
 
         return currentBufferIndex;
