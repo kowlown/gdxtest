@@ -215,27 +215,9 @@ public class Box2dLightTest extends InputAdapter implements ApplicationListener 
             batch.end();
         }
         if(jfxRenderer != null) {
-            var h = Gdx.graphics.getHeight();
-            var w = Gdx.graphics.getWidth();
-
-            var pixmap = Pixmap.createFromFrameBuffer(0, 0, w, h);
-            var pixels = pixmap.getPixels();
-            //fix colors RGBA -> BGRA
-            for(int i = 0; i< pixels.capacity(); i += 4) {
-                var red = pixels.get(i);
-                pixels.put(i, pixels.get(i + 2));
-                pixels.put(i + 2, red);
-            }
-
-            int numBytes = w * h * 4;
-            byte[] lines = new byte[numBytes];
-            int numBytesPerLine = w * 4;
-            for (int i = 0; i < h; i++) {
-                pixels.position((h - i - 1) * numBytesPerLine);
-                pixels.get(lines, i * numBytesPerLine, numBytesPerLine);
-            }
-
-            jfxRenderer.setGdxBuffer(lines);
+            var pixmap = Pixmap.createFromFrameBuffer(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            jfxRenderer.setGdxBuffer(pixmap.getPixels());
+            pixmap.dispose();
         }
     }
 

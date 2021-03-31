@@ -1,32 +1,35 @@
 package de.mpmediasoft.jfxtools.canvas;
 
 import com.badlogic.drop.Box2dLightTest;
-import com.badlogic.drop.Drop;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 import javafx.application.Platform;
 
-import java.awt.*;
+import javax.swing.*;
+import java.awt.Canvas;
 import java.nio.ByteBuffer;
 
-/**
- * The JNI interface to the native renderer.
- *
- * @author Michael Paus
- */
 public class NativeRenderer implements InputProcessor {
-    private byte[] gdxBuffer;
-    private ByteBuffer buffer;
-    private int bufferCount;
-    private int width;
-    private int height;
-    private int singleBufferSize;
+    private class RendererConfig {
+        public int width;
+        public int height;
+        public int currentBufferIndex;
+        public int singleBufferSize;
+        public ByteBuffer renderBuffer;
+        byte[] flippedBuffer;
+    }
 
 
-    private int currentBufferIndex;
+    private ByteBuffer gdxBuffer;
+    private RendererConfig oldConfig;
+    private RendererConfig newConfig;
+
+
+    public static final int BufferCount = 2;
+    public static final int BytePerInt = 4;
+
     private InputProcessor gdxInput;
     private Canvas canvas;
     private LwjglApplication app;
@@ -39,30 +42,42 @@ public class NativeRenderer implements InputProcessor {
 
     // Initialization and disposal:
 
-    public void setGdxBuffer(byte[] buffer) {
-        gdxBuffer = buffer;
-        var bufferIndex = render();
-        Platform.runLater(()-> nativeCanvas.renderUpdate(bufferIndex, width, height));
+    public void setGdxBuffer(ByteBuffer buffer) {
+
+       //synchronized (this) {
+          gdxBuffer = buffer;
+            fixColors();
+            flip();
+            var bufferIndex = render();
+            Platform.runLater(() -> nativeCanvas.renderUpdate(oldConfig.renderBuffer, bufferIndex, oldConfig.width, oldConfig.height));
+            checkSizeChange();
+        //}
+    }
+
+    private void checkSizeChange()
+    {
+        if(newConfig == oldConfig)
+            return;
+
+        oldConfig = newConfig;
+        SwingUtilities.invokeLater(()->canvas.setSize(oldConfig.width, oldConfig.height));
     }
 
     // on mac this must be called when the canvas is isDisplayable
     public void init() {
-        if(app != null)
+        if (app != null)
             return;
 
         canvas.setVisible(false);
-        canvas.setSize(800, 600);
-        var config = new LwjglApplicationConfiguration();
-        config.title = "Drop";
-        config.height = 600;
-        config.width = 800;
-        config.allowSoftwareMode = true;
 
-        //drop = new Drop();
-        //drop.setJfxRenderer(this);
+        var config = new LwjglApplicationConfiguration();
+        config.allowSoftwareMode = true;
+        config.forceExit = false;
+
         var box = new Box2dLightTest();
         box.setJfxRenderer(this);
         gdxInput = box;
+        checkSizeChange();
 
         app = new LwjglApplication(box, config, canvas);
     }
@@ -73,100 +88,114 @@ public class NativeRenderer implements InputProcessor {
 
     // Canvas creation and rendering:
 
-    public ByteBuffer createCanvas(int width, int height, int numBuffers) {
-        this.width = width;
-        this.height = height;
-        bufferCount = numBuffers;
-        currentBufferIndex = 0;
+    public void createCanvas(int width, int height) {
+        var cfg = new RendererConfig();
 
-        singleBufferSize = width*height* 4;
+        cfg.width = width;
+        cfg.height = height;
+        cfg.currentBufferIndex = 0;
 
-        buffer = ByteBuffer.allocate(singleBufferSize * numBuffers);
-        canvas.setSize(width, height);
+        cfg.singleBufferSize = width * height * BytePerInt;
+
+        cfg.renderBuffer = ByteBuffer.allocate(cfg.singleBufferSize * BufferCount);
+        cfg.flippedBuffer = new byte[cfg.singleBufferSize];
+        newConfig = cfg;
 
         init();
-        return buffer;
     }
+
+    private void fixColors() {
+        //fix colors RGBA -> BGRA
+        for (int i = 0; i < gdxBuffer.capacity(); i += BytePerInt) {
+            var red = gdxBuffer.get(i);
+            gdxBuffer.put(i, gdxBuffer.get(i + 2));
+            gdxBuffer.put(i + 2, red);
+        }
+    }
+
+    private void flip() {
+        if (oldConfig.flippedBuffer.length != gdxBuffer.capacity())
+            return;
+
+        int numBytesPerLine = oldConfig.width * BytePerInt;
+        for (int i = 0; i < oldConfig.height; i++) {
+            gdxBuffer.position((oldConfig.height - i - 1) * numBytesPerLine);
+            gdxBuffer.get(oldConfig.flippedBuffer, i * numBytesPerLine, numBytesPerLine);
+        }
+    }
+
 
     public int render() {
-        currentBufferIndex += 1;
-        if(currentBufferIndex >= bufferCount) currentBufferIndex = 0;
+        oldConfig.currentBufferIndex += 1;
+        if (oldConfig.currentBufferIndex >= BufferCount) oldConfig.currentBufferIndex = 0;
 
-        var currentGdxBuffer = gdxBuffer;
-        var currentRenderBuffer = buffer;
-        var currentSingleBufferSize = singleBufferSize;
+        if (oldConfig.flippedBuffer != null && oldConfig.renderBuffer.capacity() == oldConfig.flippedBuffer.length * BufferCount
+                && oldConfig.flippedBuffer.length == oldConfig.singleBufferSize) {
 
-        if(currentGdxBuffer != null && currentRenderBuffer.capacity() == 2*gdxBuffer.length && gdxBuffer.length == currentSingleBufferSize) {
-
-            currentRenderBuffer.position(currentBufferIndex*currentSingleBufferSize);
-            currentRenderBuffer.put(currentGdxBuffer);
-            currentRenderBuffer.rewind();
+            oldConfig.renderBuffer.position(oldConfig.currentBufferIndex * oldConfig.singleBufferSize);
+            oldConfig.renderBuffer.put(oldConfig.flippedBuffer);
+            oldConfig.renderBuffer.rewind();
         }
-
-        return currentBufferIndex;
-    }
-/*
-    public void mouseMove(int x, int y) {
-        //drop.setBucket(x, y);
+        return oldConfig.currentBufferIndex;
     }
 
-    public void moveTo(int x, int y) {
-
-    }
-*/
     @Override
     public boolean keyDown(int keycode) {
-        if(gdxInput == null)
+        if (gdxInput == null)
             return false;
         return gdxInput.keyDown(keycode);
     }
 
     @Override
     public boolean keyUp(int keycode) {
-        if(gdxInput == null)
+        if (gdxInput == null)
             return false;
         return gdxInput.keyUp(keycode);
     }
 
     @Override
     public boolean keyTyped(char character) {
-        if(gdxInput == null)
+        if (gdxInput == null)
             return false;
         return gdxInput.keyTyped(character);
     }
 
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-        if(gdxInput == null)
+        if (gdxInput == null)
             return false;
         return gdxInput.touchDown(screenX, screenY, pointer, button);
     }
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-        if(gdxInput == null)
+        if (gdxInput == null)
             return false;
         return gdxInput.touchUp(screenX, screenY, pointer, button);
     }
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
-        if(gdxInput == null)
+        if (gdxInput == null)
             return false;
         return gdxInput.touchDragged(screenX, screenY, pointer);
     }
 
     @Override
     public boolean mouseMoved(int screenX, int screenY) {
-        if(gdxInput == null)
+        if (gdxInput == null)
             return false;
         return gdxInput.mouseMoved(screenX, screenY);
     }
 
     @Override
     public boolean scrolled(float amountX, float amountY) {
-        if(gdxInput == null)
+        if (gdxInput == null)
             return false;
         return gdxInput.scrolled(amountX, amountY);
+    }
+
+    public void pause() {
+        app.stop();
     }
 }

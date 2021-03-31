@@ -8,6 +8,7 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.badlogic.gdx.Input;
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -20,6 +21,7 @@ import javafx.geometry.Bounds;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.image.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 
@@ -41,10 +43,6 @@ import javafx.scene.layout.Pane;
  * @author Michael Paus
  */
 public class NativeRenderingCanvas {
-
-    // Configure this to use double-buffering [2] or not [1].
-    private final int numBuffers = 2;
-
     private final ObjectProperty<WritableImage> fxImage;
     private final ImageView imageView;
     private final Pane canvasPane;
@@ -57,6 +55,9 @@ public class NativeRenderingCanvas {
 
     private final Viewport emptyViewport = new Viewport();
     private Viewport nrViewport = emptyViewport;
+
+    private int width;
+    private int height;
 
 
     /**
@@ -74,7 +75,6 @@ public class NativeRenderingCanvas {
         imageView.imageProperty().bind(fxImage);
         imageView.fitWidthProperty().bind(canvasPane.widthProperty());
         imageView.fitHeightProperty().bind(canvasPane.heightProperty());
-        imageView.setManaged(false); // !!!
         imageView.setPreserveRatio(true);
         imageView.setPickOnBounds(true);
 
@@ -82,8 +82,8 @@ public class NativeRenderingCanvas {
 
 
         resizeListener = (v, o, n) -> {
-            var width = (int) n.getWidth();
-            var height = (int) n.getHeight();
+            width = (int) n.getWidth();
+            height = (int) n.getHeight();
             if(width <= 0 || height <= 0)
                 return;;
 
@@ -95,7 +95,26 @@ public class NativeRenderingCanvas {
     }
 
     public void keyPressed(KeyEvent e) {
-        nativeRenderer.keyDown(e.getCode().getCode());
+        int newcode =  switch (e.getCode()) {
+            default -> e.getCode().getCode();
+            case F1 -> Input.Keys.F1;
+            case F2 -> Input.Keys.F2;
+            case F3 -> Input.Keys.F3;
+            case F4 -> Input.Keys.F4;
+            case F5 -> Input.Keys.F5;
+            case F6 -> Input.Keys.F6;
+            case F7 -> Input.Keys.F7;
+            case F8 -> Input.Keys.F8;
+            case F9 -> Input.Keys.F9;
+            case F10 -> Input.Keys.F10;
+            case F11 -> Input.Keys.F11;
+            case F12 -> Input.Keys.F12;
+        };
+
+        if(e.getCode() == KeyCode.ESCAPE)
+            nativeRenderer.pause();
+
+        nativeRenderer.keyDown(newcode);
     }
 
     /**
@@ -130,69 +149,7 @@ public class NativeRenderingCanvas {
             nativeRenderer.touchDragged((int)e.getX(), (int)e.getY(), 0);
             e.consume();
         });
-/*
-        imageView.setOnScrollStarted(e -> {
-            inScrollBrackets = true;
-        });
 
-        imageView.setOnScrollFinished(e -> {
-            inScrollBrackets = false;
-        });
-
-        imageView.setOnScroll(e -> {
-
-            // According to the JavaFX documentation, scroll started/finished indicates that this gesture was
-            // performed on a touch device and not the mouse wheel. But due to a bug (at least on macOS, see:
-            // https://bugs.openjdk.java.net/browse/JDK-8236971 ) this mechanism currently does not work
-            // for JDKs above 11 independent of the JFX version used.
-
-            // This simple mechanism does not work due to above bug because the total-delta values are NOT zero for mouse-wheels.
-//          ScrollAction scrollAction = (e.getTotalDeltaX() != 0 || e.getTotalDeltaY() != 0.0) ? ScrollAction.ZOOM : ScrollAction.PAN;
-
-            // We need all these criteria to find out whether this event comes from a mouse wheel
-            // and it remains to be tested whether this works on all platforms and all devices.
-            // Also this workarround only works with JDKs <= 11.
-            ScrollAction scrollAction;
-            if (! inScrollBrackets &&
-                    ! e.isInertia() &&
-                    Math.abs(e.getDeltaX()) == 0.0 &&
-                    e.getDeltaY() == e.getTotalDeltaY() &&
-                    Math.abs(e.getDeltaY()) > 1.0000001)
-            {
-                scrollAction = ScrollAction.ZOOM;
-            } else {
-                scrollAction = ScrollAction.PAN;
-            }
-
-            Viewport newViewport;
-            if (scrollAction == ScrollAction.ZOOM) {
-                // TODO: Implement action.
-                newViewport = nrViewport;
-            } else {
-                newViewport = nrViewport.withDeltaLocation((int)-e.getDeltaX(), (int)-e.getDeltaY());
-            }
-            e.consume();
-
-            render(newViewport);
-        });
-
-        imageView.setOnZoom(e -> {
-            // TODO: Implement action.
-            Viewport newViewport = nrViewport;
-            e.consume();
-
-            render(newViewport);
-        });
-
-        imageView.setOnRotate(e -> {
-            // TODO: Implement action.
-            Viewport newViewport = nrViewport;
-            e.consume();
-
-            render(newViewport);
-        });
-
- */
     }
 
     /**
@@ -239,21 +196,22 @@ public class NativeRenderingCanvas {
     private void renderAction(Viewport newViewport, Viewport oldViewport) {
         if (newViewport != oldViewport) {
             if (newViewport.getWidth() != oldViewport.getWidth() || newViewport.getHeight() != oldViewport.getHeight()) {
-                newRawByteBuffer = nativeRenderer.createCanvas(newViewport.getWidth(), newViewport.getHeight(), numBuffers);
+                nativeRenderer.createCanvas(newViewport.getWidth(), newViewport.getHeight());
             }
         }
         //nativeRenderer.moveTo(newViewport.getMinX(), newViewport.getMinY());
     }
 
     // Must be called on JavaFX application thread.
-    public void renderUpdate(int bufferIndex, int width, int height) {
+    public void renderUpdate(ByteBuffer renderBuffer, int bufferIndex, int width, int height) {
         assert Platform.isFxApplicationThread() : "Not called on JavaFX application thread.";
-        if((int)imageView.getFitWidth() != width || (int)imageView.getFitHeight() != height)
+
+        if(this.width != width || this.height != height || renderBuffer.capacity() != width * height * NativeRenderer.BufferCount * NativeRenderer.BytePerInt)
             return;
 
-        if (newRawByteBuffer != oldRawByteBuffer) {
-            oldRawByteBuffer = newRawByteBuffer;
-            pixelBuffer = new PixelBuffer<>(width, numBuffers * height, newRawByteBuffer, PixelFormat.getByteBgraPreInstance());
+        if (renderBuffer != oldRawByteBuffer) {
+            oldRawByteBuffer = renderBuffer;
+            pixelBuffer = new PixelBuffer<>(width, NativeRenderer.BufferCount * height, renderBuffer, PixelFormat.getByteBgraPreInstance());
             fxImage.set(new WritableImage(pixelBuffer));
         }
         pixelBuffer.updateBuffer(pb -> {
