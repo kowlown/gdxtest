@@ -44,49 +44,27 @@ public class NativeRenderingCanvas {
     // Configure this to use double-buffering [2] or not [1].
     private final int numBuffers = 2;
 
-    // Configure this to use an external thread or the JavaFX application thread for rendering.
-    private final boolean doRenderingAsynchronously = false; // The resizing does not work perfectly yet !!!
-
-    private final int MAX_THREADS = 1; // More than one thread does not make sense for this service setup!
-
-    private final ExecutorService executorService = Executors.newFixedThreadPool(MAX_THREADS, runnable -> {
-        Thread t = new Thread(runnable);
-        t.setDaemon(true);
-        t.setName("NativeRenderer");
-        return t;
-    });
-
     private final PixelFormat<ByteBuffer> pixelFormat;
     private final ObjectProperty<WritableImage> fxImage;
     private final ImageView imageView;
     private final Pane canvasPane;
     private final NativeRenderer nativeRenderer;
-    private final RenderingService renderingService;
     private final ChangeListener<? super Bounds> resizeListener;
-    private final Timer myTimer;
 
     private ByteBuffer oldRawByteBuffer;
     private ByteBuffer newRawByteBuffer;
     private PixelBuffer<ByteBuffer> pixelBuffer;
 
-    // The native renderer viewport. Its width and height are multiples of nrViewIncrement
-    // and thus will normally be larger than the canvasPanes width and height.
-    private int nrViewIncrement = 64;
     private final Viewport emptyViewport = new Viewport();
     private Viewport nrViewport = emptyViewport;
 
-    private double mx = 0.0;
-    private double my = 0.0;
-
-    private boolean inScrollBrackets = false;
 
     /**
      * Create and initialize a NativeRenderingCanvas instance.
      * @param dummyCanvas
      */
     public NativeRenderingCanvas(Canvas dummyCanvas) {
-        nativeRenderer = new NativeRenderer(dummyCanvas);
-        renderingService = new RenderingService();
+        nativeRenderer = new NativeRenderer(dummyCanvas, this);
         canvasPane = new Pane();
 
         fxImage = new SimpleObjectProperty<>();
@@ -97,7 +75,7 @@ public class NativeRenderingCanvas {
         imageView.imageProperty().bind(fxImage);
         imageView.fitWidthProperty().bind(canvasPane.widthProperty());
         imageView.fitHeightProperty().bind(canvasPane.heightProperty());
-        //imageView.setManaged(false); // !!!
+        imageView.setManaged(false); // !!!
         imageView.setPreserveRatio(true);
         imageView.setPickOnBounds(true);
 
@@ -112,15 +90,6 @@ public class NativeRenderingCanvas {
 
         };
 
-        myTimer = new Timer();
-        myTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                Platform.runLater(() -> render(nrViewport));
-            }
-        }, 0, (int)1000/30); // 30 fps
-
-
         init();
     }
 
@@ -133,33 +102,30 @@ public class NativeRenderingCanvas {
 
         imageView.setOnMouseMoved(e -> {
             if (!e.isSynthesized()) {
-                mx = e.getX();
-                my = e.getY();
+                nativeRenderer.mouseMoved((int)e.getX(), (int)e.getY());
                 e.consume();
-                nativeRenderer.mouseMove((int)mx, (int)my);
             }
         });
-/*
+
+        imageView.setOnKeyPressed(e -> {
+            nativeRenderer.keyDown(e.getCode().getCode());
+            e.consume();
+        });;
+
         imageView.setOnMouseReleased(e -> {
-                       nativeRenderer.init();
-            if (! e.isSynthesized()) {
-                mx = 0.0;
-                my = 0.0;
-                e.consume();
-            }
+            nativeRenderer.touchUp((int)e.getX(), (int)e.getY(), 0, 0);
+            e.consume();
+        });
+
+        imageView.setOnMousePressed(e -> {
+            nativeRenderer.touchDown((int)e.getX(), (int)e.getY(), 0, 0);
         });
 
         imageView.setOnMouseDragged(e -> {
-            if (! e.isSynthesized()) {
-                Viewport newViewport = nrViewport.withDeltaLocation((int)(mx - e.getX()), (int)(my - e.getY()));
-                mx = e.getX();
-                my = e.getY();
-                e.consume();
-
-                render(newViewport);
-            }
+            nativeRenderer.touchDragged((int)e.getX(), (int)e.getY(), 0);
+            e.consume();
         });
-
+/*
         imageView.setOnScrollStarted(e -> {
             inScrollBrackets = true;
         });
@@ -229,9 +195,7 @@ public class NativeRenderingCanvas {
      * before the NativeRenderingCanvas instance can be used again.
      */
     public void dispose() {
-        myTimer.cancel();
         nrViewport = emptyViewport;
-        inScrollBrackets = false;
 
         canvasPane.boundsInLocalProperty().removeListener(resizeListener);
 
@@ -263,85 +227,35 @@ public class NativeRenderingCanvas {
         if (viewport.isEmpty() || viewport.getWidth() <= 0 || viewport.getHeight() <= 0)
             return;
 
-        if (doRenderingAsynchronously) {
-            renderingService.renderIfIdle(viewport);
-        } else {
-            renderUpdate(renderAction(viewport, nrViewport), viewport);
-        }
-        nrViewport = viewport;
-
+        renderAction(viewport, nrViewport);
     }
 
     // Can be called on any thread.
-    private int renderAction(Viewport newViewport, Viewport oldViewport) {
+    private void renderAction(Viewport newViewport, Viewport oldViewport) {
         if (newViewport != oldViewport) {
             if (newViewport.getWidth() != oldViewport.getWidth() || newViewport.getHeight() != oldViewport.getHeight()) {
                 newRawByteBuffer = nativeRenderer.createCanvas(newViewport.getWidth(), newViewport.getHeight(), numBuffers, NativeColorModel.INT_ARGB_PRE.ordinal());
             }
         }
-        nativeRenderer.moveTo(newViewport.getMinX(), newViewport.getMinY());
-        return nativeRenderer.render();
+        //nativeRenderer.moveTo(newViewport.getMinX(), newViewport.getMinY());
     }
 
     // Must be called on JavaFX application thread.
-    private void renderUpdate(int bufferIndex, Viewport viewport) {
+    public void renderUpdate(int bufferIndex, int width, int height) {
         assert Platform.isFxApplicationThread() : "Not called on JavaFX application thread.";
         if (newRawByteBuffer != oldRawByteBuffer) {
             oldRawByteBuffer = newRawByteBuffer;
-            pixelBuffer = new PixelBuffer<>(viewport.getWidth(), numBuffers * viewport.getHeight(), newRawByteBuffer, pixelFormat);
+            pixelBuffer = new PixelBuffer<>(width, numBuffers * height, newRawByteBuffer, pixelFormat);
             fxImage.set(new WritableImage(pixelBuffer));
         }
         pixelBuffer.updateBuffer(pb -> {
             final Rectangle2D renderedFrame = new Rectangle2D(
                     0,
-                    bufferIndex * viewport.getHeight(),
-                    Math.min(canvasPane.getWidth(), viewport.getWidth()),
-                    Math.min(canvasPane.getHeight(), viewport.getHeight()));
+                    bufferIndex * height,
+                    Math.min(canvasPane.getWidth(), width),
+                    Math.min(canvasPane.getHeight(), height));
             imageView.setViewport(renderedFrame);
             return renderedFrame;
         });
-    }
-
-    private class RenderingService extends Service<Integer> {
-        private Viewport oldViewport = emptyViewport;
-        private Viewport newViewport = emptyViewport;
-        private Viewport dirtyViewport = emptyViewport;
-
-        RenderingService() {
-            setExecutor(executorService);
-
-            this.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
-                @Override
-                public void handle(WorkerStateEvent t) {
-                    renderUpdate((Integer) t.getSource().getValue(), newViewport);
-                    renderIfIdle(dirtyViewport);
-                }
-            });
-        }
-
-        void renderIfIdle(Viewport viewport) {
-            assert Platform.isFxApplicationThread() : "Not called on JavaFX application thread.";
-
-            if(! viewport.isEmpty()) {
-                dirtyViewport = viewport;
-                State state = getState();
-                if (state != State.SCHEDULED && state != State.RUNNING) {
-                    restart();
-                }
-            }
-        }
-
-        @Override
-        protected Task<Integer> createTask() {
-            return new Task<Integer>() {
-                @Override
-                protected Integer call() {
-                    oldViewport = newViewport;
-                    newViewport = dirtyViewport;
-                    dirtyViewport = emptyViewport;
-                    return renderAction(newViewport, oldViewport);
-                }
-            };
-        }
     }
 }

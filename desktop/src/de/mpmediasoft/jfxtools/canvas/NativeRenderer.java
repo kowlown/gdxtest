@@ -1,9 +1,13 @@
 package de.mpmediasoft.jfxtools.canvas;
 
+import com.badlogic.drop.Box2dLightTest;
 import com.badlogic.drop.Drop;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
+import javafx.application.Platform;
 
 import java.awt.*;
 import java.nio.ByteBuffer;
@@ -13,7 +17,7 @@ import java.nio.ByteBuffer;
  *
  * @author Michael Paus
  */
-public class NativeRenderer {
+public class NativeRenderer implements InputProcessor {
     private byte[] gdxBuffer;
     private ByteBuffer buffer;
     private int bufferCount;
@@ -24,18 +28,22 @@ public class NativeRenderer {
 
 
     private int currentBufferIndex;
-    private Drop drop;
+    private InputProcessor gdxInput;
     private Canvas canvas;
     private LwjglApplication app;
+    private NativeRenderingCanvas nativeCanvas;
 
-    public NativeRenderer(Canvas dummyCanvas) {
+    public NativeRenderer(Canvas dummyCanvas, NativeRenderingCanvas nativeRenderingCanvas) {
         canvas = dummyCanvas;
+        nativeCanvas = nativeRenderingCanvas;
     }
 
     // Initialization and disposal:
 
     public void setGdxBuffer(byte[] buffer) {
         gdxBuffer = buffer;
+        var bufferIndex = render();
+        Platform.runLater(()-> nativeCanvas.renderUpdate(bufferIndex, width, height));
     }
 
     public int getWidth() {
@@ -59,13 +67,13 @@ public class NativeRenderer {
         config.width = 800;
         config.allowSoftwareMode = true;
 
-       /* config.setTitle("Drop");
-        config.setWindowedMode(800,600);
-        config.setInitialVisible(false);
-*/
-        drop = new Drop();
-        drop.setJfxRenderer(this);
-        app = new LwjglApplication(drop, config, canvas);
+        //drop = new Drop();
+        //drop.setJfxRenderer(this);
+        var box = new Box2dLightTest();
+        box.setJfxRenderer(this);
+        gdxInput = box;
+
+        app = new LwjglApplication(box, config, canvas);
     }
 
     public void dispose() {
@@ -104,15 +112,68 @@ public class NativeRenderer {
 
         return currentBufferIndex;
     }
-
+/*
     public void mouseMove(int x, int y) {
-        drop.setBucket(x, y);
+        //drop.setBucket(x, y);
     }
 
     public void moveTo(int x, int y) {
 
     }
+*/
+    @Override
+    public boolean keyDown(int keycode) {
+        if(gdxInput == null)
+            return false;
+        return gdxInput.keyDown(keycode);
+    }
 
-    // TODO: zoom, rotate, ...
+    @Override
+    public boolean keyUp(int keycode) {
+        if(gdxInput == null)
+            return false;
+        return gdxInput.keyUp(keycode);
+    }
 
+    @Override
+    public boolean keyTyped(char character) {
+        if(gdxInput == null)
+            return false;
+        return gdxInput.keyTyped(character);
+    }
+
+    @Override
+    public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+        if(gdxInput == null)
+            return false;
+        return gdxInput.touchDown(screenX, screenY, pointer, button);
+    }
+
+    @Override
+    public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        if(gdxInput == null)
+            return false;
+        return gdxInput.touchUp(screenX, screenY, pointer, button);
+    }
+
+    @Override
+    public boolean touchDragged(int screenX, int screenY, int pointer) {
+        if(gdxInput == null)
+            return false;
+        return gdxInput.touchDragged(screenX, screenY, pointer);
+    }
+
+    @Override
+    public boolean mouseMoved(int screenX, int screenY) {
+        if(gdxInput == null)
+            return false;
+        return gdxInput.mouseMoved(screenX, screenY);
+    }
+
+    @Override
+    public boolean scrolled(float amountX, float amountY) {
+        if(gdxInput == null)
+            return false;
+        return gdxInput.scrolled(amountX, amountY);
+    }
 }

@@ -104,7 +104,7 @@ public class Drop extends ApplicationAdapter {
             batch.draw(dropImage, raindrop.x, raindrop.y);
         }
         batch.end();
-        if(jfxRenderer != null) {
+   /*     if(jfxRenderer != null) {
             var bytes = ScreenUtils.getFrameBufferPixels(false);
             //fix colors RGBA -> BGRA
             for(int i = 0; i< bytes.length; i += 4) {
@@ -114,7 +114,7 @@ public class Drop extends ApplicationAdapter {
             }
 
             jfxRenderer.setGdxBuffer(bytes);
-        }
+        }*/
 
         fb.end();
 
