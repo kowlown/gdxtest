@@ -5,11 +5,17 @@ import javafx.application.Application;
 import javafx.embed.swing.SwingNode;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import javax.swing.*;
 import java.awt.*;
+
 
 /**
  * A simple demo to show how the NativeRenderingCanvas class is supposed to be used.
@@ -28,7 +34,8 @@ public class NativeRenderingCanvasDemo extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        var root = new StackPane();
+        var root = new BorderPane();
+        var main = new StackPane();
         var panel = new JPanel();
         var dummyCanvas = new Canvas();
         panel.add(dummyCanvas);
@@ -37,14 +44,34 @@ public class NativeRenderingCanvasDemo extends Application {
             swingNode.setContent(panel);
         //});
 
+        MenuBar menuBar = new MenuBar();
+
+        // --- Menu File
+        Menu menuFile = new Menu("File");
+        var item = new MenuItem("Test");
+        menuFile.getItems().addAll(item);
+
+        // --- Menu Edit
+        Menu menuEdit = new Menu("Edit");
+
+        // --- Menu View
+        Menu menuView = new Menu("View");
+
+        menuBar.getMenus().addAll(menuFile, menuEdit, menuView);
+
+
+
+
         canvas = new NativeRenderingCanvas(dummyCanvas);
 
         Label label = new Label("This is JavaFX");
         label.setMouseTransparent(true);
         label.setStyle("-fx-font-size: 64pt; -fx-font-family: Arial; -fx-font-weight: bold; -fx-text-fill: white; -fx-opacity: 0.8;");
 
-        root.getChildren().addAll(swingNode, canvas.getRoot(), label);
+        main.getChildren().addAll(swingNode, canvas.getRoot(), label);
 
+        root.setTop(menuBar);
+        root.setCenter(main);
         Scene scene = new Scene(root, 800, 600);
         scene.setOnKeyPressed((e)->{
             canvas.keyPressed(e);
